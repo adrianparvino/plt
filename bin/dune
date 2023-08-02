@@ -1,0 +1,5 @@
+(executable
+ (public_name plt)
+ (modes byte exe)
+ (name main)
+ (libraries plt))

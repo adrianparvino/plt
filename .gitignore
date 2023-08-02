@@ -1,0 +1,23 @@
+# Compiled files
+*.cmo
+*.cmi
+*.cma
+*.cmx
+*.cmxa
+*.cmxs
+*.o
+*.obj
+
+# Build artifacts
+_build/
+*.byte
+*.native
+
+# Dependency directories
+_opam/
+
+# Editor/IDE files
+.vscode/
+.idea/
+
+.direnv

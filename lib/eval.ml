@@ -54,7 +54,8 @@ let eval =
     | LetCont (cont, arg, impl, body) ->
         let env =
           Env.(
-            env |> put cont (PrimK (fun x -> eval Env.(env |> put arg x) impl)))
+            env
+            |> put cont (PrimK (fun x -> eval Env.(env |> put arg x) impl)))
         in
         eval env body
     | LetFun (f, arg, cont, impl, body) ->
@@ -97,6 +98,24 @@ let eval =
     Env.(
       empty
       |> put (Sym "halt") (PrimK (fun x -> x))
+      |> put (Sym "print")
+           (PrimF
+              (fun x k ->
+                Format.printf "%a@." Value.pp x;
+                k Unit))
+      |> put (Sym "fst")
+           (PrimF
+              (fun p k ->
+                match p with
+                | Pair (a, _) -> k a
+                | _ -> failwith "fst: argument must be a pair"))
+      |> put (Sym "snd")
+           (PrimF
+              (fun p k ->
+                match p with
+                | Pair (_, b) -> k b
+                | _ -> failwith "snd: argument must be a pair"))
+      |> put (Sym "true") (LeftV Unit)
       |> put (Sym "false") (RightV Unit)
       |> put (Sym "-")
            (PrimF

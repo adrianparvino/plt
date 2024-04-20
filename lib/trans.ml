@@ -1,6 +1,13 @@
 open Kast
 
-type lisp = Lit of string | Symbol of string | Terms of lisp list
+type lisp =
+  | Symbol of string
+  | Lit of string
+  | Fn of string list * lisp
+  | If of lisp * lisp * lisp
+  | Cons of lisp * lisp
+  | App of lisp * lisp list
+  | Let of (string * lisp) list * lisp
 [@@deriving show]
 
 type context = unit
@@ -21,24 +28,19 @@ let rec trans ast trace =
         match int_of_string_opt l with
         | Some i -> LetVal (x, Integer i, break x trace)
         | None -> LetVal (x, Lit l, break x trace))
-    | Terms [ Symbol "fn"; Terms [ Symbol x ]; body ] ->
+    | Fn ([ x ], body) ->
         let f = new_fn "f" in
         let k = new_fn "k" in
         LetFun (f, Sym x, k, trans body (KCont { k }), break f trace)
-    | Terms [ Symbol "fn"; Terms (Symbol x :: rest); body ] ->
-        make trace
-          (Terms
-             [
-               Symbol "fn";
-               Terms [ Symbol x ];
-               Terms [ Symbol "fn"; Terms rest; body ];
-             ])
-    | Terms [ Symbol "if"; cond; t; f ] ->
-        make (Case { t; f; next = trace }) cond
-    | Terms [ Symbol "cons"; left; right ] ->
-        make (Cons1 { right; next = trace }) left
-    | Terms [ f; x ] -> make (KFnCall { right = x; next = trace }) f
-    | Terms (f :: x :: rest) -> make trace (Terms (Terms [ f; x ] :: rest))
+    | Fn (x :: rest, body) -> make trace (Fn ([ x ], Fn (rest, body)))
+    | If (cond, t, f) -> make (Case { t; f; next = trace }) cond
+    | Cons (left, right) -> make (Cons1 { right; next = trace }) left
+    | App (f, [ x ]) -> make (KFnCall { right = x; next = trace }) f
+    | App (f, x :: rest) -> make trace (App (App (f, [ x ]), rest))
+    | Let ([ (x, value) ], body) ->
+      let j = new_fn "j" in
+      LetCont (j, Sym x, make trace body, trans value (KCont { k = j }))
+    | Let ((binding::rest), body) -> make trace (Let ([binding], Let (rest, body)))
     | _ -> failwith "Unmatched language construct"
   and[@tail_mod_cons] break variable = function
     | KCont { k } -> ContCall (k, variable)
@@ -83,6 +85,6 @@ let rec trans ast trace =
                 LetCont
                   (fk, fx, trans f (KCont { k = j }), Case (variable, tk, fk))
               ) )
-    (* | _, _ -> failwith "Break" *)
+    (* | _ -> failwith "Break" *)
   in
   make trace ast
